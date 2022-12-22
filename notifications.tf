@@ -3,7 +3,7 @@ locals {
 }
 
 resource "aws_s3_bucket_notification" "cur" {
-  bucket = var.s3_bucket_name
+  bucket = local.bucket_id
 
   lambda_function {
     lambda_function_arn = aws_lambda_function.run_crawler.arn
@@ -13,9 +13,7 @@ resource "aws_s3_bucket_notification" "cur" {
   }
 
   depends_on = [
-    aws_s3_bucket.cur,
     aws_lambda_permission.allow_bucket,
-    aws_s3_bucket_policy.cur,
   ]
 }
 

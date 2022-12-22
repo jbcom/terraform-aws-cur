@@ -35,5 +35,8 @@ override.tf.json
 # VS Code
 **/.vscode/*
 
+# IntelliJ
+**/.idea/*
+
 # Compressed Lambda code
 lambda.zip

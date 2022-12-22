@@ -46,34 +46,48 @@ resource "aws_kms_alias" "s3" {
   target_key_id = aws_kms_key.s3[0].key_id
 }
 
+locals {
+  kms_key_arn = var.s3_use_existing_kms_key ? data.aws_kms_key.s3[0].arn : aws_kms_key.s3[0].arn
+}
+
 # Versioning and logging disabled.
 # tfsec:ignore:AWS077 tfsec:ignore:AWS002
 resource "aws_s3_bucket" "cur" {
   count = var.use_existing_s3_bucket ? 0 : 1
 
   bucket = var.s3_bucket_name
-  acl    = "private"
-
-  versioning {
-    enabled = false
-  }
-
-  server_side_encryption_configuration {
-    rule {
-      apply_server_side_encryption_by_default {
-        kms_master_key_id = var.s3_use_existing_kms_key ? data.aws_kms_key.s3[0].arn : aws_kms_key.s3[0].arn
-        sse_algorithm     = "aws:kms"
-      }
-    }
-  }
 
   tags = var.tags
+}
+
+locals {
+  bucket_id = var.use_existing_s3_bucket ? data.aws_s3_bucket.cur[0].id : aws_s3_bucket.cur[0].id
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "cur" {
+  count = var.use_existing_s3_bucket ? 0 : 1
+
+  bucket = local.bucket_id
+
+  rule {
+    apply_server_side_encryption_by_default {
+      kms_master_key_id = local.kms_key_arn
+      sse_algorithm     = "aws:kms"
+    }
+  }
+}
+
+resource "aws_s3_bucket_acl" "cur" {
+  count = var.use_existing_s3_bucket ? 0 : 1
+
+  bucket = local.bucket_id
+  acl    = "private"
 }
 
 resource "aws_s3_bucket_public_access_block" "cur" {
   count = var.use_existing_s3_bucket ? 0 : 1
 
-  bucket = aws_s3_bucket.cur[0].id
+  bucket = local.bucket_id
 
   block_public_acls       = true
   block_public_policy     = true
@@ -84,7 +98,7 @@ resource "aws_s3_bucket_public_access_block" "cur" {
 resource "aws_s3_bucket_policy" "cur" {
   count = var.use_existing_s3_bucket ? 0 : 1
 
-  bucket = aws_s3_bucket.cur[0].id
+  bucket = local.bucket_id
   policy = data.aws_iam_policy_document.s3_cur[0].json
 
   depends_on = [aws_s3_bucket_public_access_block.cur]
